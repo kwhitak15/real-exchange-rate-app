@@ -1,196 +1,73 @@
-# Exchange Atlas
+# Real Exchange Rates
 
-### Explore currencies. Understand global purchasing power.
+An interactive Streamlit app for comparing nominal and CPI-adjusted real exchange rates between two economies using monthly International Monetary Fund (IMF) data.
 
-**Exchange Atlas** is an interactive economic dashboard that allows users to explore nominal and real exchange rates between countries using monthly data from the International Monetary Fund (IMF).
+## What the app does
 
-Built with Python, Streamlit, pandas, and Plotly, the application transforms historical economic data into interactive visualizations.
+* Select **Country 1** (base) and **Country 2** (quote), including the Euro area (`G163`).
+* Use the **swap button** to reverse the currency pair instantly.
+* Choose any starting and ending month from January 1976 onward, subject to IMF coverage.
+* Switch between **Real**, **Nominal**, and **Both** interactive charts. Both uses separate vertical axes.
+* Examine summary statistics, preview observations, and download a **CSV** containing the underlying inputs and calculations. Missing months are included with blank values.
 
-## Features
+## Economic methodology
 
-**Country Comparison**
+The app retrieves CPI and period-average exchange rates from the [IMF SDMX 3.0 API](https://api.imf.org/external/sdmx/3.0). Requested monthly series are:
 
-Select two countries or the Euro area to analyze their exchange rates over time.
+* CPI (CPI dataflow): `{ISO3}.CPI._T.IX.M`
+* Exchange rate (ER dataflow): `{ISO3}.XDC_USD.PA_RT.M`
 
-**IMF Data Integration**
+Let `E1` and `E2` be the IMF exchange-rate inputs, measured in **local-currency units per US dollar**. The nominal exchange rate must be **Country 2 currency per one unit of Country 1 currency**:
 
-Retrieve monthly consumer price index (CPI) and exchange-rate data from the IMF SDMX API, beginning in January 1976 where available.
+```text
+S(t) = E2(t) / E1(t)
+```
 
-**Interactive Visualizations**
+If Country 1 is the United Kingdom and Country 2 is the United States, this produces **USD per GBP**. USD per USD is 1 by definition.
 
-Switch between three chart views:
+Let `P1` and `P2` be the monthly consumer price indexes for Countries 1 and 2. The assignment's real exchange rate is:
 
-* Real Exchange Rate Index
-* Nominal Exchange Rate
-* Both (using separate vertical axes)
+```text
+RER(t) = S(t) × P1(t) / P2(t)
+```
 
-**Flexible Date Selection**
+The app calculates `RER*`, the **arithmetic average of valid RER observations in the selected period**, and normalizes as follows:
 
-Choose a custom start and end month. The app automatically recalculates the sample-average real exchange rate and normalized index whenever the selected period changes.
+```text
+Real Index(t) = 100 × RER(t) / RER*
+```
 
-**Data Export**
-
-Download a CSV containing the underlying IMF observations and calculated exchange rates.
-
-**Modern Dashboard**
-
-A responsive interface featuring interactive charts, summary statistics, loading indicators, and a streamlined visual design.
-
----
-
-## Economic Methodology
-
-### 1. Nominal Exchange Rate
-
-Let:
-
-* E1 = Country 1 currency units per USD
-* E2 = Country 2 currency units per USD
-
-The nominal exchange rate is:
-
-**S(t) = E2(t) / E1(t)**
-
-This gives units of Country 2 currency per one unit of Country 1 currency.
-
-For example, selecting the United Kingdom as Country 1 and the United States as Country 2 produces USD per GBP.
-
-### 2. Real Exchange Rate
-
-The real exchange rate is calculated as:
-
-**RER(t) = S(t) × P1(t) / P2(t)**
-
-Where:
-
-* S(t) = nominal exchange rate
-* P1(t) = Country 1 CPI
-* P2(t) = Country 2 CPI
-
-### 3. Real Exchange Rate Index
-
-The sample-average real exchange rate is:
-
-**RER* = Average of valid RER(t) observations**
-
-The normalized index is:
-
-**Real Index(t) = 100 × RER(t) / RER***
-
-By construction, the average real index equals 100 across valid observations in the selected period, apart from numerical rounding.
-
-Changing the sample dates changes RER* and therefore recalculates the index.
+The real index averages **100** over months with complete data. Changing the start or end month recalculates `RER*`. The nominal rate remains in actual currency units and is **not** normalized.
 
 ### Interpretation
 
-* **Index = 100:** Real exchange rate equals its selected-period average.
-* **Index > 100:** Country 1's goods are relatively more expensive than at the sample average, under the specified RER definition.
-* **Index < 100:** Country 1's goods are relatively less expensive than at the sample average.
+* **100**: The real exchange rate is at its selected-period average.
+* **Above 100**: Country 1's CPI-adjusted relative price level is higher than at the selected-period average under this formula.
+* **Below 100**: It is lower than at the selected-period average.
 
-Because CPI values are index numbers, the raw RER level depends on their reference periods. The normalized index measures changes relative to the selected sample average.
+The CPI-based real index does **not** directly establish whether a currency is overvalued or undervalued. CPI base periods, historical changes in national currencies, and IMF data gaps can affect interpretation. Missing observations are not interpolated or fabricated.
 
----
+## Run online
 
-## Data Sources
+The repository contains these files at its top level:
 
-All downloaded economic observations come from the International Monetary Fund.
+* `app.py` — user interface, data retrieval, economic calculations, interactive charts, and downloads.
+* `requirements.txt` — Python dependencies.
+* `README.md` — instructions and economic methodology.
 
-**IMF Data Portal:** https://data.imf.org
+To deploy, sign into [Streamlit Community Cloud](https://share.streamlit.io), connect this repository, select the `main` branch and `app.py`, choose **Python 3.12**, and deploy. IMF downloads normally need no API key. Set the app to public if you want visitors to access it without signing in.
 
-**IMF SDMX 3.0 API:** https://api.imf.org/external/sdmx/3.0
+## Verification checklist
 
-The application requests the following monthly series:
+1. Select **United Kingdom** for Country 1 and **United States** for Country 2.
+2. Confirm nominal `S` is expressed in **USD per GBP**.
+3. Download the CSV for a period with complete observations.
+4. Verify one row manually: `Nominal_S = FX_2_per_USD / FX_1_per_USD` and `RER = Nominal_S × CPI_1 / CPI_2`.
+5. Check the average of nonblank `Real_Index` values is approximately **100**.
+6. Change the dates and confirm the real index is recalculated; test Real, Nominal, Both, and the swap button.
 
-**Consumer Price Index:**
+## Technology and source
 
-`{ISO3}.CPI._T.IX.M`
+Python 3.12 · Streamlit · pandas · Plotly · requests · pycountry · Babel
 
-**Exchange Rate:**
-
-`{ISO3}.XDC_USD.PA_RT.M`
-
-The application requests the IMF CPI and ER dataflows and uses `G163` for the Euro area.
-
-The IMF exchange-rate series represents local currency units per US dollar. The application converts these series into the required exchange-rate direction.
-
-USD per USD is set to 1 by definition.
-
-Data availability differs by country and time period. Missing observations are not interpolated or fabricated.
-
-Historical currency changes may affect the interpretation of some country comparisons.
-
----
-
-## Technology
-
-The application uses:
-
-* **Python 3.12** — Programming language
-* **Streamlit** — Interactive web application
-* **pandas** — Data processing and calculations
-* **Plotly** — Interactive financial and economic charts
-* **requests** — IMF API communication
-* **pycountry and Babel** — Country and currency information
-* **GitHub** — Code hosting
-* **Streamlit Community Cloud** — Web deployment
-
----
-
-## Running the Application
-
-The application is designed for deployment on Streamlit Community Cloud.
-
-1. Create a public GitHub repository.
-2. Upload `app.py`, `requirements.txt`, and `README.md`.
-3. Sign in to https://share.streamlit.io using GitHub.
-4. Select the repository and the `main` branch.
-5. Set the application entry point to `app.py`.
-6. Select Python 3.12.
-7. Deploy the application.
-
-The application retrieves IMF observations when required and temporarily caches downloaded data.
-
-An internet connection is required.
-
----
-
-## Verification
-
-The application should be tested using:
-
-**Country 1:** United Kingdom
-**Country 2:** United States
-
-The nominal exchange rate must be expressed in USD per GBP.
-
-The exported CSV should allow verification of:
-
-1. Nominal exchange rate = FX_2_per_USD / FX_1_per_USD.
-2. Real exchange rate = Nominal_S × CPI_1 / CPI_2.
-3. Real Index = 100 × RER / selected-sample average RER.
-4. The average real index equals approximately 100 across valid months.
-5. Changing the date range recalculates the normalized real index.
-
-Real, Nominal, and Both chart modes should also be tested.
-
----
-
-## Project Structure
-
-**app.py** — Application code, IMF data retrieval, calculations, and visualizations.
-
-**requirements.txt** — Python dependencies.
-
-**README.md** — Project documentation and methodology.
-
----
-
-## Notes and Limitations
-
-The application depends on the availability and structure of IMF API data.
-
-Some countries may have incomplete CPI or exchange-rate histories. If necessary observations are unavailable, the application displays a message instead of generating artificial data.
-
-The real exchange rate calculation follows the definition specified for this economics assignment.
-
-**Exchange Atlas — An interactive exploration of currencies and international prices.**
+**Source:** [International Monetary Fund Data Portal](https://data.imf.org). Coverage and live API availability vary by series and economy.
